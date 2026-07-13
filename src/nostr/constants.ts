@@ -20,6 +20,10 @@ export const KIND_DELETE = 5;
 export const KIND_ZAP_REQUEST = 9734;
 /** NIP-57 zap receipt (published by the recipient's LNURL server on payment). */
 export const KIND_ZAP_RECEIPT = 9735;
+/** NIP-89 handler information — an app advertising the kinds it can open. Addressable. */
+export const KIND_HANDLER_INFO = 31990;
+/** NIP-89 handler recommendation — a user vouching for handlers per kind. Addressable (d = kind). */
+export const KIND_HANDLER_RECOMMENDATION = 31989;
 
 /** NIP-32 label namespace ("L") used by NostrHub approvals. */
 export const LABEL_NAMESPACE = "nostrhub";

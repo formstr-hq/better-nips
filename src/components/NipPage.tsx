@@ -10,6 +10,7 @@ import { Markdown } from "../lib/markdown";
 import { toast } from "../lib/toast";
 import { ApproverStack } from "./ApproverStack";
 import { FeedbackBar } from "./FeedbackBar";
+import { NipApps } from "./NipApps";
 import { ProfileLink } from "./ProfileLink";
 
 function authorLabel(pubkey: string, name?: string): string {
@@ -293,6 +294,14 @@ export function NipPage({
           Copy address
         </button>
       </div>
+
+      <NipApps
+        kinds={nip.kinds}
+        follows={follows}
+        webOfTrust={webOfTrust}
+        loggedIn={!!me}
+        onNeedsAuth={onNeedsAuth}
+      />
 
       <FeedbackBar
         nip={nip}

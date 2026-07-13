@@ -2032,6 +2032,125 @@ body {
   color: var(--muted-2);
 }
 
+/* ---------- NIP-89 apps ("Apps related to this NIP") ---------- */
+.nip-apps {
+  margin-top: 34px;
+  padding-top: 26px;
+  border-top: 1px solid var(--border);
+}
+.nip-apps-title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 680;
+  letter-spacing: -0.01em;
+}
+.nip-apps-sub {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.app-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.app-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 13px;
+}
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.app-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.app-name {
+  font-size: 15px;
+  font-weight: 640;
+  color: var(--text);
+  text-decoration: none;
+}
+a.app-name:hover {
+  color: var(--accent);
+}
+.app-kinds {
+  gap: 5px;
+}
+.app-recommenders {
+  font-size: 12px;
+  color: var(--positive);
+}
+.btn.approve.sm {
+  padding: 5px 11px;
+  font-size: 13px;
+  flex: none;
+}
+
+.add-app-toggle {
+  font-size: 13px;
+}
+.add-app-form {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+.add-app-tabs {
+  display: flex;
+  gap: 6px;
+}
+.add-app-tabs .tab {
+  flex: 1;
+  padding: 7px 10px;
+  font-size: 13px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.add-app-tabs .tab.active {
+  color: var(--accent-press);
+  border-color: var(--accent-ring);
+  background: var(--accent-soft);
+}
+.add-app-kinds {
+  gap: 6px;
+}
+.kind-chip.toggle {
+  cursor: pointer;
+  background: var(--panel-2);
+  border-color: var(--border);
+  color: var(--muted);
+}
+.kind-chip.toggle.on {
+  background: var(--accent-soft);
+  border-color: var(--accent-ring);
+  color: var(--accent-press);
+}
+.add-app-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 560px) {
   .brand-sub {
