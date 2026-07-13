@@ -31,7 +31,7 @@ async function copy(text: string, what: string) {
 }
 
 /**
- * Standalone, shareable NIP screen (route `#/nip/<naddr>`). Resolves the NIP
+ * Standalone, shareable NIP screen (route `/nip/<naddr>`). Resolves the NIP
  * from its address — works cold from a shared link and warm from the local
  * cache — and renders the full Markdown body, approvals, and share/approve.
  */

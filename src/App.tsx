@@ -12,11 +12,11 @@ import { useSigner } from "./hooks/useSigner";
 import { useFollows, type Surface } from "./hooks/useNips";
 import { useWebOfTrust } from "./hooks/useWebOfTrust";
 import { useUserRelays } from "./hooks/useUserRelays";
-import { editHref, nipHref, useHashRoute } from "./hooks/useHashRoute";
+import { editHref, nipHref, useRoute } from "./hooks/useRoute";
 
 export default function App() {
   const { pubkey, locked, method } = useSigner();
-  const { route, navigate } = useHashRoute();
+  const { route, navigate } = useRoute();
   const [surface, setSurface] = useState<Surface>("following");
   const [login, setLogin] = useState<{ open: boolean; tab?: LoginTab }>({
     open: false,
@@ -48,8 +48,8 @@ export default function App() {
     <div className="app">
       <LoginBar
         onOpenLogin={() => openLogin()}
-        onNavigateHome={() => navigate("#/")}
-        onNavigateSettings={() => navigate("#/settings")}
+        onNavigateHome={() => navigate("/")}
+        onNavigateSettings={() => navigate("/settings")}
       />
 
       {locked && (
@@ -76,9 +76,9 @@ export default function App() {
             follows={follows}
             webOfTrust={wot.set}
             onNeedsAuth={() => openLogin()}
-            onBack={() => navigate("#/")}
+            onBack={() => navigate("/")}
             onEdit={() => navigate(editHref(route.id))}
-            onDeleted={() => navigate("#/")}
+            onDeleted={() => navigate("/")}
           />
         ) : route.name === "edit" ? (
           <ComposeNip
@@ -94,13 +94,13 @@ export default function App() {
             wot={wot}
             userRelays={userRelays}
             onOpenLogin={() => openLogin()}
-            onBack={() => navigate("#/")}
+            onBack={() => navigate("/")}
           />
         ) : route.name === "new" ? (
           <ComposeNip
             loggedIn={!!pubkey}
             onNeedsAuth={() => openLogin()}
-            onBack={() => navigate("#/")}
+            onBack={() => navigate("/")}
             onPublished={(naddr) => navigate(nipHref(naddr))}
           />
         ) : (
@@ -111,7 +111,7 @@ export default function App() {
                 onChange={setSurface}
                 disabled={disabled}
               />
-              <button className="btn new-nip" onClick={() => navigate("#/new")}>
+              <button className="btn new-nip" onClick={() => navigate("/new")}>
                 + New NIP
               </button>
             </div>
