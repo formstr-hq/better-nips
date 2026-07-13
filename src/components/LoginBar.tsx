@@ -19,10 +19,14 @@ export function LoginBar({
   onOpenLogin,
   onNavigateHome,
   onNavigateSettings,
+  onNavigateNotifications,
+  unreadNotifications = 0,
 }: {
   onOpenLogin: () => void;
   onNavigateHome: () => void;
   onNavigateSettings: () => void;
+  onNavigateNotifications: () => void;
+  unreadNotifications?: number;
 }) {
   const { pubkey, loggedIn, locked, accounts, switchAccount, logout } =
     useSigner();
@@ -55,6 +59,25 @@ export function LoginBar({
 
       <div className="account">
         <OnlineDot />
+        {loggedIn && pubkey && (
+          <button
+            className="notif-bell"
+            onClick={onNavigateNotifications}
+            title="Notifications"
+            aria-label={
+              unreadNotifications > 0
+                ? `Notifications (${unreadNotifications} unread)`
+                : "Notifications"
+            }
+          >
+            🔔
+            {unreadNotifications > 0 && (
+              <span className="notif-badge">
+                {unreadNotifications > 99 ? "99+" : unreadNotifications}
+              </span>
+            )}
+          </button>
+        )}
         {loggedIn && pubkey ? (
           <div className="menu-wrap" ref={menuRef}>
             <button

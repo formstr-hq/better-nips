@@ -6,10 +6,12 @@ import { NipFeed } from "./components/NipFeed";
 import { NipPage } from "./components/NipPage";
 import { ComposeNip } from "./components/ComposeNip";
 import { Settings } from "./components/Settings";
+import { NotificationsPage } from "./components/NotificationsPage";
 import { LoginModal } from "./components/LoginModal";
 import { Toaster } from "./components/Toaster";
 import { useSigner } from "./hooks/useSigner";
 import { useFollows, type Surface } from "./hooks/useNips";
+import { useNotifications } from "./hooks/useNotifications";
 import { useWebOfTrust } from "./hooks/useWebOfTrust";
 import { useUserRelays } from "./hooks/useUserRelays";
 import { editHref, nipHref, useRoute } from "./hooks/useRoute";
@@ -25,6 +27,7 @@ export default function App() {
   const follows = useFollows(pubkey);
   const wot = useWebOfTrust(pubkey, follows);
   const userRelays = useUserRelays(pubkey);
+  const notifications = useNotifications(pubkey);
 
   const openLogin = useCallback((tab?: LoginTab) => {
     setLogin({ open: true, tab });
@@ -50,6 +53,8 @@ export default function App() {
         onOpenLogin={() => openLogin()}
         onNavigateHome={() => navigate("/")}
         onNavigateSettings={() => navigate("/settings")}
+        onNavigateNotifications={() => navigate("/notifications")}
+        unreadNotifications={notifications.unread}
       />
 
       {locked && (
@@ -94,6 +99,13 @@ export default function App() {
             wot={wot}
             userRelays={userRelays}
             onOpenLogin={() => openLogin()}
+            onBack={() => navigate("/")}
+          />
+        ) : route.name === "notifications" ? (
+          <NotificationsPage
+            pubkey={pubkey}
+            notifications={notifications}
+            onOpenNip={(id) => navigate(nipHref(id))}
             onBack={() => navigate("/")}
           />
         ) : route.name === "new" ? (

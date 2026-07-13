@@ -75,3 +75,13 @@ export function parseNip(e: Event): Nip | null {
 export function approvalTarget(e: Event): string | undefined {
   return e.tags.find((t) => t[0] === "a")?.[1];
 }
+
+/**
+ * Turn a `30817:<pubkey>:<d>` address coordinate into a shareable naddr — the
+ * id notifications link to. The d-tag may itself contain colons, so everything
+ * after the second colon is the identifier.
+ */
+export function addressToNaddr(address: string): string {
+  const [, pubkey, ...rest] = address.split(":");
+  return naddrOf({ pubkey: pubkey ?? "", d: rest.join(":") });
+}

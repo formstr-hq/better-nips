@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 export type Route =
   | { name: "feed" }
   | { name: "settings" }
+  | { name: "notifications" }
   | { name: "new" }
   | { name: "edit"; id: string }
   | { name: "nip"; id: string };
@@ -11,6 +12,7 @@ function parse(pathname: string): Route {
   // Strip leading/trailing slashes so "/nip/x" and "nip/x/" both match.
   const path = pathname.replace(/^\/+/, "").replace(/\/+$/, "");
   if (path === "settings") return { name: "settings" };
+  if (path === "notifications") return { name: "notifications" };
   if (path === "new") return { name: "new" };
   const edit = path.match(/^edit\/(.+)$/);
   if (edit) return { name: "edit", id: decodeURIComponent(edit[1]) };
