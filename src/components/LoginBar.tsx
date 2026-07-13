@@ -19,12 +19,14 @@ export function LoginBar({
   onOpenLogin,
   onNavigateHome,
   onNavigateSettings,
+  onNavigateApps,
   onNavigateNotifications,
   unreadNotifications = 0,
 }: {
   onOpenLogin: () => void;
   onNavigateHome: () => void;
   onNavigateSettings: () => void;
+  onNavigateApps: () => void;
   onNavigateNotifications: () => void;
   unreadNotifications?: number;
 }) {
@@ -106,6 +108,15 @@ export function LoginBar({
                     Re-authenticate to sign
                   </button>
                 )}
+                <button
+                  className="menu-item"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onNavigateApps();
+                  }}
+                >
+                  App directory
+                </button>
                 <button
                   className="menu-item"
                   onClick={() => {

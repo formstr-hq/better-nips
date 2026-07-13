@@ -6,6 +6,7 @@ import { NipFeed } from "./components/NipFeed";
 import { NipPage } from "./components/NipPage";
 import { ComposeNip } from "./components/ComposeNip";
 import { Settings } from "./components/Settings";
+import { AppsPage } from "./components/AppsPage";
 import { NotificationsPage } from "./components/NotificationsPage";
 import { LoginModal } from "./components/LoginModal";
 import { Toaster } from "./components/Toaster";
@@ -53,6 +54,7 @@ export default function App() {
         onOpenLogin={() => openLogin()}
         onNavigateHome={() => navigate("/")}
         onNavigateSettings={() => navigate("/settings")}
+        onNavigateApps={() => navigate("/apps")}
         onNavigateNotifications={() => navigate("/notifications")}
         unreadNotifications={notifications.unread}
       />
@@ -99,6 +101,13 @@ export default function App() {
             wot={wot}
             userRelays={userRelays}
             onOpenLogin={() => openLogin()}
+            onBack={() => navigate("/")}
+          />
+        ) : route.name === "apps" ? (
+          <AppsPage
+            follows={follows}
+            webOfTrust={wot.set}
+            loggedIn={!!pubkey}
             onBack={() => navigate("/")}
           />
         ) : route.name === "notifications" ? (

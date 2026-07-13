@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { decode } from "nostr-tools/nip19";
 import { useHandlers, type AppEntry } from "../hooks/useHandlers";
-import { handlerWebUrl } from "../nostr/handlers";
+import { handlerWebUrl, type Handler } from "../nostr/handlers";
 import { KIND_HANDLER_INFO } from "../nostr/constants";
 import type { NipKind } from "../nostr/nips";
 import { toast } from "../lib/toast";
@@ -85,13 +85,16 @@ function AppRow({
 
 function AddApp({
   nipKinds,
+  myApps,
   onRegister,
   onRecommendCoord,
 }: {
   nipKinds: NipKind[];
+  myApps: Handler[];
   onRegister: (input: {
     name: string;
     url: string;
+    picture: string;
     kinds: string[];
   }) => Promise<boolean>;
   onRecommendCoord: (address: string) => Promise<boolean>;
@@ -100,7 +103,8 @@ function AddApp({
   const [mode, setMode] = useState<"new" | "existing">("new");
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
-  const [naddr, setNaddr] = useState("");
+  const [picture, setPicture] = useState("");
+  const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(nipKinds.map((k) => k.kind)),
   );
@@ -116,9 +120,28 @@ function AddApp({
   const reset = () => {
     setName("");
     setUrl("");
-    setNaddr("");
+    setPicture("");
+    setQuery("");
     setSelected(new Set(nipKinds.map((k) => k.kind)));
     setOpen(false);
+  };
+
+  // The "add existing" input does double duty: paste a handler naddr, or type to
+  // search your own registered apps. A valid naddr short-circuits the search.
+  const q = query.trim().toLowerCase();
+  const naddrCoord = handlerCoordFromNaddr(query);
+  const matches =
+    q && !naddrCoord
+      ? myApps
+          .filter((h) => (h.name || "").toLowerCase().includes(q))
+          .slice(0, 8)
+      : [];
+
+  const recommendCoord = async (address: string) => {
+    setBusy(true);
+    const ok = await onRecommendCoord(address);
+    setBusy(false);
+    if (ok) reset();
   };
 
   const submitNew = async () => {
@@ -127,6 +150,7 @@ function AddApp({
     const ok = await onRegister({
       name,
       url,
+      picture,
       kinds: [...selected],
     });
     setBusy(false);
@@ -134,15 +158,11 @@ function AddApp({
   };
 
   const submitExisting = async () => {
-    const coord = handlerCoordFromNaddr(naddr);
-    if (!coord) {
-      toast.error("That doesn't look like a handler naddr (kind 31990).");
+    if (naddrCoord) {
+      await recommendCoord(naddrCoord);
       return;
     }
-    setBusy(true);
-    const ok = await onRecommendCoord(coord);
-    setBusy(false);
-    if (ok) reset();
+    toast.error("Pick one of your apps, or paste a handler naddr (kind 31990).");
   };
 
   if (!open) {
@@ -166,7 +186,7 @@ function AddApp({
           className={`tab${mode === "existing" ? " active" : ""}`}
           onClick={() => setMode("existing")}
         >
-          Recommend by naddr
+          Add an existing app
         </button>
       </div>
 
@@ -190,6 +210,18 @@ function AddApp({
               onChange={(e) => setUrl(e.target.value)}
             />
           </label>
+          <label className="field">
+            <span className="field-label">
+              Icon URL{" "}
+              <span className="field-hint">(optional — shown as the app avatar)</span>
+            </span>
+            <input
+              className="search mono-input"
+              placeholder="https://…/icon.png"
+              value={picture}
+              onChange={(e) => setPicture(e.target.value)}
+            />
+          </label>
           <div className="field">
             <span className="field-label">
               Supports{" "}
@@ -209,18 +241,52 @@ function AddApp({
           </div>
         </>
       ) : (
-        <label className="field">
+        <div className="field">
           <span className="field-label">
-            Handler naddr{" "}
-            <span className="field-hint">(a kind-31990 app you know)</span>
+            Your apps or a handler naddr{" "}
+            <span className="field-hint">
+              (search your registered apps, or paste a kind-31990 naddr)
+            </span>
           </span>
           <input
             className="search mono-input"
-            placeholder="naddr1…"
-            value={naddr}
-            onChange={(e) => setNaddr(e.target.value)}
+            placeholder="Search your apps, or naddr1…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
           />
-        </label>
+          {matches.length > 0 && (
+            <div className="app-match-list">
+              {matches.map((h) => (
+                <button
+                  key={h.address}
+                  className="app-match"
+                  disabled={busy}
+                  onClick={() => void recommendCoord(h.address)}
+                >
+                  {h.picture ? (
+                    <img className="avatar sm" src={h.picture} alt="" />
+                  ) : (
+                    <div className="avatar sm placeholder" />
+                  )}
+                  <span className="app-match-name">
+                    {h.name || "Unnamed app"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          {q && !naddrCoord && matches.length === 0 && (
+            <span className="field-hint">
+              No app of yours matches. Paste a handler naddr to recommend
+              someone else's.
+            </span>
+          )}
+          {naddrCoord && (
+            <span className="field-hint">
+              Valid handler naddr — click Recommend to add it.
+            </span>
+          )}
+        </div>
       )}
 
       <div className="add-app-actions">
@@ -264,6 +330,7 @@ export function NipApps({
   );
   const {
     apps,
+    myApps,
     ready,
     pending,
     recommend,
@@ -308,6 +375,7 @@ export function NipApps({
       {loggedIn ? (
         <AddApp
           nipKinds={kinds}
+          myApps={myApps}
           onRegister={registerApp}
           onRecommendCoord={recommendByCoord}
         />

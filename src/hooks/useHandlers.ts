@@ -126,6 +126,17 @@ export function useHandlers(
   }, [recCoords]);
   const { events: coordHandlers } = useObserve(coordFilters);
 
+  // The logged-in user's own registered apps — for the "add an existing app"
+  // search (pick one of your apps instead of pasting its naddr).
+  const myAppFilters: Filter[] | null = me
+    ? [{ kinds: [KIND_HANDLER_INFO], authors: [me] }]
+    : null;
+  const { events: myAppEvents } = useObserve(myAppFilters);
+  const myApps = useMemo(
+    () => myAppEvents.map(parseHandler).filter((h): h is Handler => !!h),
+    [myAppEvents],
+  );
+
   // Handlers we published this session — shown immediately, before they're observed back.
   const [sessionHandlers, setSessionHandlers] = useState<Handler[]>([]);
   // Optimistic recommend/unrecommend overrides, keyed by handler address.
@@ -339,6 +350,7 @@ export function useHandlers(
 
   return {
     apps,
+    myApps,
     ready: eose,
     pending,
     recommend,

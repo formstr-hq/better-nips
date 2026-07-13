@@ -4,6 +4,7 @@ export type Route =
   | { name: "feed" }
   | { name: "settings" }
   | { name: "notifications" }
+  | { name: "apps" }
   | { name: "new" }
   | { name: "edit"; id: string }
   | { name: "nip"; id: string };
@@ -13,6 +14,7 @@ function parse(pathname: string): Route {
   const path = pathname.replace(/^\/+/, "").replace(/\/+$/, "");
   if (path === "settings") return { name: "settings" };
   if (path === "notifications") return { name: "notifications" };
+  if (path === "apps") return { name: "apps" };
   if (path === "new") return { name: "new" };
   const edit = path.match(/^edit\/(.+)$/);
   if (edit) return { name: "edit", id: decodeURIComponent(edit[1]) };
