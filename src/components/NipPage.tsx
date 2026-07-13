@@ -3,6 +3,7 @@ import { npubEncode } from "nostr-tools/nip19";
 import { useNipByAddress } from "../hooks/useNipByAddress";
 import { useProfile, useProfiles } from "../hooks/useNips";
 import { useApprove } from "../hooks/useApprove";
+import { useDeleteNip } from "../hooks/useDeleteNip";
 import { signer } from "../nostr/bootstrap";
 import { APP_NAME, APP_TAGLINE } from "../nostr/constants";
 import { Markdown } from "../lib/markdown";
@@ -40,12 +41,18 @@ export function NipPage({
   webOfTrust,
   onNeedsAuth,
   onBack,
+  onEdit,
+  onDeleted,
 }: {
   id: string;
   follows: string[];
   webOfTrust: Set<string>;
   onNeedsAuth: () => void;
   onBack: () => void;
+  /** Open the editor for this NIP (owner only). */
+  onEdit: () => void;
+  /** Called after a successful deletion request (owner only). */
+  onDeleted: () => void;
 }) {
   const networkAuthors = useMemo(
     () => [...new Set([...follows, ...webOfTrust])],
@@ -58,6 +65,7 @@ export function NipPage({
   const profile = useProfile(nip?.pubkey ?? null);
   const { approve, disapprove, retract, approved, disapproved, pending } =
     useApprove(onNeedsAuth);
+  const { remove, deleting } = useDeleteNip(onNeedsAuth);
   const verdictProfiles = useProfiles(
     useMemo(() => [...approvers, ...disapprovers], [approvers, disapprovers]),
   );
@@ -70,6 +78,7 @@ export function NipPage({
   }, [nip]);
 
   const me = signer.getActiveAccount()?.pubkey ?? "";
+  const isOwner = !!nip && nip.pubkey === me;
   const isApproved = nip ? approved.has(nip.address) : false;
   const isDisapproved = nip ? disapproved.has(nip.address) : false;
   const meApproved = !!nip && approvers.has(me);
@@ -141,20 +150,46 @@ export function NipPage({
     day: "numeric",
   });
 
+  const handleDelete = async () => {
+    if (
+      !window.confirm(
+        `Delete “${nip.title}”? This publishes a deletion request to your relays. It can't be reliably undone.`,
+      )
+    )
+      return;
+    if (await remove(nip)) onDeleted();
+  };
+
   return (
     <article className="nip-page">
       <div className="nip-page-nav">
         <button className="back-link" onClick={onBack}>
           ← Back to NIPs
         </button>
-        <button
-          className="btn ghost sm"
-          onClick={() =>
-            void copy(window.location.href, "shareable link")
-          }
-        >
-          Copy link
-        </button>
+        <div className="nip-page-nav-actions">
+          {isOwner && (
+            <>
+              <button className="btn ghost sm" onClick={onEdit}>
+                Edit
+              </button>
+              <button
+                className="btn ghost sm danger"
+                disabled={deleting}
+                onClick={() => void handleDelete()}
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </>
+          )}
+          <button
+            className="btn ghost sm"
+            onClick={() =>
+              void copy(window.location.href, "shareable link")
+            }
+          >
+            Copy link
+          </button>
+        </div>
       </div>
 
       <ProfileLink

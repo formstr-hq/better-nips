@@ -12,7 +12,7 @@ import { useSigner } from "./hooks/useSigner";
 import { useFollows, type Surface } from "./hooks/useNips";
 import { useWebOfTrust } from "./hooks/useWebOfTrust";
 import { useUserRelays } from "./hooks/useUserRelays";
-import { nipHref, useHashRoute } from "./hooks/useHashRoute";
+import { editHref, nipHref, useHashRoute } from "./hooks/useHashRoute";
 
 export default function App() {
   const { pubkey, locked, method } = useSigner();
@@ -77,6 +77,16 @@ export default function App() {
             webOfTrust={wot.set}
             onNeedsAuth={() => openLogin()}
             onBack={() => navigate("#/")}
+            onEdit={() => navigate(editHref(route.id))}
+            onDeleted={() => navigate("#/")}
+          />
+        ) : route.name === "edit" ? (
+          <ComposeNip
+            loggedIn={!!pubkey}
+            editId={route.id}
+            onNeedsAuth={() => openLogin()}
+            onBack={() => navigate(nipHref(route.id))}
+            onPublished={(naddr) => navigate(nipHref(naddr))}
           />
         ) : route.name === "settings" ? (
           <Settings

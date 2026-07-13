@@ -4,6 +4,7 @@ export type Route =
   | { name: "feed" }
   | { name: "settings" }
   | { name: "new" }
+  | { name: "edit"; id: string }
   | { name: "nip"; id: string };
 
 function parse(hash: string): Route {
@@ -11,6 +12,8 @@ function parse(hash: string): Route {
   const path = hash.replace(/^#\/?/, "");
   if (path === "settings") return { name: "settings" };
   if (path === "new") return { name: "new" };
+  const edit = path.match(/^edit\/(.+)$/);
+  if (edit) return { name: "edit", id: decodeURIComponent(edit[1]) };
   const nip = path.match(/^nip\/(.+)$/);
   if (nip) return { name: "nip", id: decodeURIComponent(nip[1]) };
   return { name: "feed" };
@@ -19,6 +22,11 @@ function parse(hash: string): Route {
 /** Build a shareable URL for a NIP screen, given its naddr/identifier. */
 export function nipHref(id: string): string {
   return `#/nip/${encodeURIComponent(id)}`;
+}
+
+/** Build the URL for editing a NIP you authored, given its naddr/identifier. */
+export function editHref(id: string): string {
+  return `#/edit/${encodeURIComponent(id)}`;
 }
 
 /** Minimal hash-based router — shareable URLs, working Back button, no deps. */

@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { EventTemplate } from "nostr-tools";
 import { dataLayer, signer } from "../nostr/bootstrap";
 import { CLIENT_NAME, KIND_NIP } from "../nostr/constants";
 import { naddrOf } from "../nostr/nips";
+import { useNipByAddress } from "../hooks/useNipByAddress";
 import { Markdown } from "../lib/markdown";
 import { toast } from "../lib/toast";
 
@@ -25,15 +26,19 @@ function slugify(s: string): string {
  * Compose and publish a community NIP (addressable kind-30817). Mirrors the
  * NostrHub "NIPs on Nostr" shape: a `d` identifier, a `title`, zero or more `k`
  * (kind) declarations, and a Markdown body. Editing an existing NIP is just
- * publishing again with the same `d`.
+ * publishing again with the same `d`: pass `editId` to load the NIP into the
+ * form and lock its identifier so the republish replaces it in place.
  */
 export function ComposeNip({
   loggedIn,
+  editId,
   onNeedsAuth,
   onBack,
   onPublished,
 }: {
   loggedIn: boolean;
+  /** naddr of a NIP to edit; omit to compose a new one. */
+  editId?: string;
   onNeedsAuth: () => void;
   onBack: () => void;
   onPublished: (naddr: string) => void;
@@ -46,7 +51,26 @@ export function ComposeNip({
   const [preview, setPreview] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
-  // The d-tag follows the title until the user edits it directly.
+  // In edit mode, load the existing NIP and seed the form once it arrives.
+  const isEditing = !!editId;
+  const { nip: existing, ready: existingReady } = useNipByAddress(editId ?? "");
+  const [seeded, setSeeded] = useState(false);
+  useEffect(() => {
+    if (!isEditing || seeded || !existing) return;
+    setTitle(existing.title);
+    setTouchedId(true);
+    setIdentifier(existing.d);
+    setKinds(
+      existing.kinds.length > 0
+        ? existing.kinds.map((k) => ({ kind: k.kind, name: k.name }))
+        : [{ kind: "", name: "" }],
+    );
+    setBody(existing.content);
+    setSeeded(true);
+  }, [isEditing, seeded, existing]);
+
+  // The d-tag follows the title until the user edits it directly; in edit mode
+  // it's pinned to the loaded identifier so the republish replaces in place.
   const effectiveId = touchedId ? identifier : slugify(title);
   const canPublish = title.trim().length > 0 && effectiveId.length > 0;
 
@@ -87,7 +111,9 @@ export function ComposeNip({
       };
       const { result } = await dataLayer.publish(template);
       if (result.accepted > 0) {
-        toast.success(`Published to ${result.accepted}/${result.total} relays.`);
+        toast.success(
+          `${isEditing ? "Updated" : "Published"} on ${result.accepted}/${result.total} relays.`,
+        );
         onPublished(naddrOf({ pubkey: me, d: effectiveId }));
       } else {
         toast.error("Signed but no relay accepted it. Try different relays.");
@@ -99,11 +125,37 @@ export function ComposeNip({
     }
   };
 
+  // Edit mode waits for the NIP to load before it can seed the form.
+  if (isEditing && !seeded) {
+    return (
+      <div className="compose">
+        <div className="nip-page-nav">
+          <button className="back-link" onClick={onBack}>
+            ← Back
+          </button>
+        </div>
+        <h1 className="page-title">Edit NIP</h1>
+        {existingReady && !existing ? (
+          <p className="empty">
+            Couldn’t load this NIP to edit. It may live on relays you’re not
+            connected to.
+          </p>
+        ) : (
+          <div className="card skeleton">
+            <div className="sk-title" />
+            <div className="sk-line" />
+            <div className="sk-line short" />
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="compose">
       <div className="nip-page-nav">
         <button className="back-link" onClick={onBack}>
-          ← Back to NIPs
+          {isEditing ? "← Back" : "← Back to NIPs"}
         </button>
         <button
           className="btn ghost sm"
@@ -113,7 +165,7 @@ export function ComposeNip({
         </button>
       </div>
 
-      <h1 className="page-title">Write a NIP</h1>
+      <h1 className="page-title">{isEditing ? "Edit NIP" : "Write a NIP"}</h1>
 
       {!loggedIn && (
         <p className="muted-block compose-note">
@@ -157,12 +209,18 @@ export function ComposeNip({
 
           <label className="field">
             <span className="field-label">
-              Identifier <span className="field-hint">(the addressable d-tag)</span>
+              Identifier{" "}
+              <span className="field-hint">
+                {isEditing
+                  ? "(fixed — editing replaces this NIP in place)"
+                  : "(the addressable d-tag)"}
+              </span>
             </span>
             <input
               className="search mono-input"
               placeholder="auto-generated from title"
               value={effectiveId}
+              disabled={isEditing}
               onChange={(e) => {
                 setTouchedId(true);
                 setIdentifier(slugify(e.target.value));
@@ -229,7 +287,13 @@ export function ComposeNip({
           onClick={() => void publish()}
           disabled={!canPublish || publishing}
         >
-          {publishing ? "Publishing…" : "Publish NIP"}
+          {publishing
+            ? isEditing
+              ? "Saving…"
+              : "Publishing…"
+            : isEditing
+              ? "Save changes"
+              : "Publish NIP"}
         </button>
         <span className="result-count">
           {KIND_NIP}:…:{effectiveId || "?"}
