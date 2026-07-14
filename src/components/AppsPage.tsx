@@ -27,23 +27,30 @@ function parseKinds(input: string): string[] {
   ];
 }
 
-function EditForm({
+/** The add/edit form for an app registration. With no `handler`, it registers a new one. */
+function AppForm({
   handler,
   busy,
+  saveLabel,
+  savingLabel,
   onSave,
   onCancel,
 }: {
-  handler: Handler;
+  handler?: Handler;
   busy: boolean;
+  saveLabel: string;
+  savingLabel: string;
   onSave: (input: AppEdit) => void;
   onCancel: () => void;
 }) {
-  const [name, setName] = useState(handler.name);
-  const [url, setUrl] = useState(handlerWebUrl(handler) ?? "");
-  const [picture, setPicture] = useState(handler.picture ?? "");
-  const [about, setAbout] = useState(handler.about ?? "");
+  const [name, setName] = useState(handler?.name ?? "");
+  const [url, setUrl] = useState(handler ? handlerWebUrl(handler) ?? "" : "");
+  const [picture, setPicture] = useState(handler?.picture ?? "");
+  const [about, setAbout] = useState(handler?.about ?? "");
   const [kinds, setKinds] = useState(
-    [...handler.kinds].sort((a, b) => Number(a) - Number(b)).join(", "),
+    handler
+      ? [...handler.kinds].sort((a, b) => Number(a) - Number(b)).join(", ")
+      : "",
   );
 
   const save = () => {
@@ -61,6 +68,7 @@ function EditForm({
         <span className="field-label">App name</span>
         <input
           className="search"
+          placeholder="e.g. Nostrudel"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
@@ -69,6 +77,7 @@ function EditForm({
         <span className="field-label">App URL</span>
         <input
           className="search mono-input"
+          placeholder="https://…"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
         />
@@ -96,6 +105,7 @@ function EditForm({
         </span>
         <input
           className="search mono-input"
+          placeholder="e.g. 30023, 30024"
           value={kinds}
           onChange={(e) => setKinds(e.target.value)}
         />
@@ -105,7 +115,7 @@ function EditForm({
           Cancel
         </button>
         <button className="btn sm" onClick={save} disabled={busy}>
-          {busy ? "Saving…" : "Save changes"}
+          {busy ? savingLabel : saveLabel}
         </button>
       </div>
     </div>
@@ -185,9 +195,11 @@ function DirectoryRow({
         </div>
       </div>
       {editing && mine && (
-        <EditForm
+        <AppForm
           handler={handler}
           busy={busy}
+          saveLabel="Save changes"
+          savingLabel="Saving…"
           onSave={(input) => {
             onSave(input);
             setEditing(false);
@@ -215,6 +227,7 @@ export function AppsPage({
   onBack: () => void;
 }) {
   const [surface, setSurface] = useState<Surface>("following");
+  const [adding, setAdding] = useState(false);
 
   const disabled = useMemo(() => {
     const set = new Set<Surface>();
@@ -226,11 +239,19 @@ export function AppsPage({
   }, [loggedIn, follows.length]);
   const effective: Surface = disabled.has(surface) ? "global" : surface;
 
-  const { apps, ready, pending, updateApp } = useAppDirectory(
+  const { apps, ready, pending, registerApp, updateApp } = useAppDirectory(
     effective,
     follows,
     webOfTrust,
   );
+  const [addBusy, setAddBusy] = useState(false);
+
+  const add = async (input: AppEdit) => {
+    setAddBusy(true);
+    const ok = await registerApp(input);
+    setAddBusy(false);
+    if (ok) setAdding(false);
+  };
 
   return (
     <section className="apps-page">
@@ -242,6 +263,24 @@ export function AppsPage({
         Every NIP-89 app registration, surfaced by your network. Copy an app's
         naddr to recommend it elsewhere, or edit apps you registered.
       </p>
+
+      {loggedIn &&
+        (adding ? (
+          <AppForm
+            busy={addBusy}
+            saveLabel="Add app"
+            savingLabel="Adding…"
+            onSave={(input) => void add(input)}
+            onCancel={() => setAdding(false)}
+          />
+        ) : (
+          <button
+            className="link-btn add-app-toggle"
+            onClick={() => setAdding(true)}
+          >
+            + Add an app
+          </button>
+        ))}
 
       <ScopeTabs surface={effective} onChange={setSurface} disabled={disabled} />
 

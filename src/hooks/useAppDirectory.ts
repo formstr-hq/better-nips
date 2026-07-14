@@ -80,6 +80,44 @@ export function useAppDirectory(
 
   const [pending, setPending] = useState<Set<string>>(new Set());
 
+  // Register a brand-new app in the directory: a fresh `d` ⇒ a new kind-31990,
+  // rather than replacing an existing registration the way updateApp does.
+  const registerApp = useCallback(async (input: AppEdit) => {
+    const active = signer.getActiveSigner();
+    const owner = signer.getActiveAccount()?.pubkey;
+    if (!active || !owner) {
+      toast.error("Re-authenticate to add an app.");
+      return false;
+    }
+    const d = crypto.randomUUID();
+    try {
+      const content = JSON.stringify({
+        name: input.name.trim(),
+        picture: input.picture?.trim() || undefined,
+        about: input.about?.trim() || undefined,
+      });
+      const tmpl: EventTemplate = {
+        kind: KIND_HANDLER_INFO,
+        created_at: Math.floor(Date.now() / 1000),
+        content,
+        tags: [
+          ["d", d],
+          ...input.kinds.map((k) => ["k", k]),
+          ["web", input.url.trim()],
+          ["client", CLIENT_NAME],
+        ],
+      };
+      const { event } = await dataLayer.publish(tmpl);
+      const handler = parseHandler(event);
+      if (handler) setSessionHandlers((prev) => [...prev, handler]);
+      toast.success("App added.");
+      return true;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add the app.");
+      return false;
+    }
+  }, []);
+
   const updateApp = useCallback(
     async (handler: Handler, input: AppEdit) => {
       const active = signer.getActiveSigner();
@@ -133,5 +171,5 @@ export function useAppDirectory(
     [],
   );
 
-  return { apps, ready: eose, pending, updateApp, loggedIn: !!me };
+  return { apps, ready: eose, pending, registerApp, updateApp, loggedIn: !!me };
 }
