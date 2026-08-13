@@ -1,16 +1,18 @@
-import { useMemo } from "react";
-import type { Filter } from "nostr-tools";
-import { decode } from "nostr-tools/nip19";
+import { useEffect, useMemo } from "react";
+import type { Event, Filter } from "nostr-tools";
 import { useObserve } from "./useObserve";
 import { useGossip } from "./useGossip";
 import {
   KIND_APPROVAL,
+  KIND_DELETE,
   KIND_NIP,
   LABEL_APPROVE,
   LABEL_DISAPPROVE,
   LABEL_NAMESPACE,
 } from "../nostr/constants";
 import { approvalTarget, parseNip, type Nip } from "../nostr/nips";
+import { decodeNipAddress } from "../nostr/coordinates";
+import type { InitialNipData } from "../nostr/initialNip";
 
 export interface LoadedNip {
   nip: Nip | null;
@@ -28,27 +30,11 @@ interface Coord {
   identifier: string;
 }
 
-/** Decode an naddr (or a raw `kind:pubkey:d` coordinate) into its parts. */
-function decodeCoord(id: string): Coord | null {
-  if (id.startsWith("naddr1")) {
-    try {
-      const d = decode(id);
-      if (d.type === "naddr") {
-        return {
-          kind: d.data.kind,
-          pubkey: d.data.pubkey,
-          identifier: d.data.identifier,
-        };
-      }
-    } catch {
-      return null;
-    }
-    return null;
+function newer(left: Event, right: Event): Event {
+  if (left.created_at !== right.created_at) {
+    return left.created_at > right.created_at ? left : right;
   }
-  // Fallback: a raw addressable coordinate "30817:<pubkey>:<d>".
-  const m = id.match(/^(\d+):([0-9a-f]{64}):(.*)$/);
-  if (m) return { kind: Number(m[1]), pubkey: m[2], identifier: m[3] };
-  return null;
+  return left.id < right.id ? left : right;
 }
 
 /**
@@ -60,8 +46,26 @@ function decodeCoord(id: string): Coord | null {
 export function useNipByAddress(
   id: string,
   networkAuthors: string[] = [],
+  initialNip?: InitialNipData,
 ): LoadedNip & { coord: Coord | null } {
-  const coord = useMemo(() => decodeCoord(id), [id]);
+  const address = useMemo(() => decodeNipAddress(id), [id]);
+  const coord = useMemo<Coord | null>(
+    () =>
+      address
+        ? { kind: address.kind, pubkey: address.pubkey, identifier: address.identifier }
+        : null,
+    [address],
+  );
+
+  useEffect(() => {
+    if (!address) return;
+    void fetch("/api/index-nip", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ coordinate: address.coordinate }),
+      keepalive: true,
+    }).catch(() => {});
+  }, [address]);
 
   // Pull the NIP author's relays into the gossip pool so a cold shared link
   // resolves even when the NIP lives off your own relays.
@@ -79,24 +83,24 @@ export function useNipByAddress(
       : null;
   const { events: nipEvents, eose } = useObserve(nipFilters);
 
-  const address = coord
+  const coordinate = coord
     ? `${coord.kind}:${coord.pubkey}:${coord.identifier}`
     : "";
 
   // Two approval queries, merged: address-scoped (global total, off your own
   // relays) + author-scoped over your network (outbox-routed to the approvers'
   // relays, so a follow's approval that lives off your relays still shows up).
-  const addrFilters: Filter[] | null = address
-    ? [{ kinds: [KIND_APPROVAL], "#a": [address], "#L": [LABEL_NAMESPACE], limit: 500 }]
+  const addrFilters: Filter[] | null = coordinate
+    ? [{ kinds: [KIND_APPROVAL], "#a": [coordinate], "#L": [LABEL_NAMESPACE], limit: 500 }]
     : null;
   const { events: addrApprovals } = useObserve(addrFilters);
 
   const networkFilters: Filter[] | null =
-    address && networkAuthors.length > 0
+    coordinate && networkAuthors.length > 0
       ? [
           {
             kinds: [KIND_APPROVAL],
-            "#a": [address],
+            "#a": [coordinate],
             "#L": [LABEL_NAMESPACE],
             authors: networkAuthors,
             limit: 500,
@@ -105,16 +109,51 @@ export function useNipByAddress(
       : null;
   const { events: networkApprovals } = useObserve(networkFilters);
 
-  const nip = useMemo(
-    () => (nipEvents[0] ? parseNip(nipEvents[0]) : null),
-    [nipEvents],
+  const candidateEvents = useMemo(() => {
+    const initial = initialNip?.coordinate === coordinate ? initialNip.event : null;
+    return initial ? [initial, ...nipEvents] : nipEvents;
+  }, [coordinate, initialNip, nipEvents]);
+  const currentEvent = useMemo(
+    () =>
+      candidateEvents.reduce<Event | null>(
+      (winner, event) => (winner ? newer(winner, event) : event),
+        null,
+      ),
+    [candidateEvents],
   );
+  const deletionFilters: Filter[] | null =
+    coord && coordinate
+      ? [
+          { kinds: [KIND_DELETE], authors: [coord.pubkey], "#a": [coordinate] },
+          ...(candidateEvents.length > 0
+            ? [
+                {
+                  kinds: [KIND_DELETE],
+                  authors: [coord.pubkey],
+                  "#e": candidateEvents.map((event) => event.id),
+                },
+              ]
+            : []),
+        ]
+      : null;
+  const { events: deletions } = useObserve(deletionFilters);
+  const nip = useMemo(() => {
+    if (!currentEvent) return null;
+    const deleted = deletions.some(
+      (event) =>
+        event.pubkey === currentEvent.pubkey &&
+        (event.tags.some((tag) => tag[0] === "e" && tag[1] === currentEvent.id) ||
+          (event.created_at >= currentEvent.created_at &&
+            event.tags.some((tag) => tag[0] === "a" && tag[1] === coordinate))),
+    );
+    return deleted ? null : parseNip(currentEvent);
+  }, [coordinate, currentEvent, deletions]);
 
   const { approvers, disapprovers } = useMemo(() => {
     const approvers = new Set<string>();
     const disapprovers = new Set<string>();
     for (const e of [...addrApprovals, ...networkApprovals]) {
-      if (approvalTarget(e) !== address) continue;
+      if (approvalTarget(e) !== coordinate) continue;
       if (e.tags.some((t) => t[0] === "l" && t[1] === LABEL_APPROVE)) {
         approvers.add(e.pubkey);
       } else if (e.tags.some((t) => t[0] === "l" && t[1] === LABEL_DISAPPROVE)) {
@@ -122,7 +161,7 @@ export function useNipByAddress(
       }
     }
     return { approvers, disapprovers };
-  }, [addrApprovals, networkApprovals, address]);
+  }, [addrApprovals, networkApprovals, coordinate]);
 
-  return { nip, approvers, disapprovers, ready: eose, coord };
+  return { nip, approvers, disapprovers, ready: eose || !!nip, coord };
 }

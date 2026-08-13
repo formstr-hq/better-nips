@@ -3,13 +3,16 @@ node_modules/
 
 # Build output
 dist/
+.next/
+dist-worker/
+coverage/
 
 # TypeScript
 *.tsbuildinfo
 
 # Logs
 *.log
-npm-debug.log*
+pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
