@@ -14,7 +14,7 @@ Built on [`@formstr/signer`](https://www.npmjs.com/package/@formstr/signer) and
 - Lists `kind:30817` community NIPs (title, summary, the kinds they define).
   All NIPs are equal — there is no "official" vs "custom" canon. Ranking comes
   purely from your social graph's approvals, not a moderator's blessing.
-- **Each NIP has its own shareable screen** (`#/nip/<naddr>`) with full Markdown
+- **Each NIP has its own shareable screen** (`/nip/<naddr>`) with full Markdown
   rendering, the kinds it defines, approval count, and copy-link — paste the URL
   to anyone and it loads the NIP cold from relays.
 - Three surfaces: **Following**, **Web of Trust** (follows-of-follows), **Global**.
@@ -48,20 +48,32 @@ research this is built on.
 
 ## Architecture
 
+Public NIP routes are rendered by Next.js from a durable PostgreSQL index. The
+server response contains the title, author, publication date, declared kinds,
+and full Markdown body, so crawlers and JavaScript-disabled clients can read the
+document. After hydration, the existing browser relay stack takes over and
+replaces a stale indexed event when it observes a newer addressable event.
+
+The rest of the application remains browser-owned:
+
 The app **only declares interests and publishes**. The `local-relay` Web Worker
 owns every connection decision (outbox routing, dedup, caching).
 
 | Concern | Where |
 |---------|-------|
+| NIP SSR, metadata, JSON-LD, Open Graph | `app/nip/[id]`, `src/components/NipDocument.tsx` |
+| Sitemap and robots | `app/sitemap.ts`, `app/robots.ts` |
+| PostgreSQL index and relay crawler | `src/server`, `drizzle` |
+| Durable queue and nightly cron | `src/worker` (Graphile Worker) |
 | Login / signing (NIP-07/46/49/55) + login modal | `@formstr/signer` (+ `/ui`) → `src/nostr/bootstrap.ts`, `src/hooks/useSigner.ts`, `src/components/LoginModal.tsx` |
 | Silent session re-attach on reload | `silentUnlock()` → `src/nostr/bootstrap.ts` |
 | Network + cache | `@formstr/local-relay` worker → `src/nostr/bootstrap.ts` |
 | User relays (NIP-65, default fallback) | `src/nostr/nip65.ts`, `src/hooks/useUserRelays.ts` |
-| Routing / shareable NIP screens | `src/hooks/useHashRoute.ts`, `src/components/NipPage.tsx`, `src/hooks/useNipByAddress.ts` |
+| Routing / shareable NIP screens | `src/hooks/useRoute.ts`, `src/components/NipPage.tsx`, `src/hooks/useNipByAddress.ts` |
 | Per-account follows + WoT caching | `src/nostr/wotCache.ts` |
 | Surfacing (following / WoT / global) | `buildFilters` + `Scope`/`ScopeUser` → `src/hooks/useNips.ts` |
 | Web-of-trust **calculation** | `src/nostr/wot.ts` (pure) run inside `src/nostr/wot.worker.ts`, driven by `src/hooks/useWebOfTrust.ts` |
-| NIP / approval parsing + Markdown reader | `src/nostr/nips.ts`, `src/lib/markdown.tsx`, `src/components/NipDetail.tsx` |
+| NIP / approval parsing + Markdown reader | `src/nostr/nips.ts`, `src/lib/markdown.tsx`, `src/components/NipDocument.tsx` |
 | Approve action (+ toasts, re-auth) | `src/hooks/useApprove.ts` |
 | Relay status / editing | `src/hooks/useRelayStatus.ts`, `src/nostr/relays.ts`, `src/components/Settings.tsx` |
 
@@ -78,9 +90,38 @@ worker returns the trust set plus stats shown in **Settings**.
 
 ## Run
 
+### Docker Compose
+
+Docker Compose runs Next.js, the Graphile Worker indexer, migrations, and
+PostgreSQL:
+
 ```bash
-npm install
-npm run dev      # http://localhost:5173
+cp .env.example .env
+# Replace POSTGRES_PASSWORD and the matching URL-encoded password in DATABASE_URL.
+docker compose up --build
+```
+
+The default nightly crawl runs at 03:00 UTC. `NOSTR_INDEX_RELAYS` is the explicit
+JSON relay registry searched by both nightly and on-demand jobs.
+`MAX_INDEXED_NIPS` caps admitted coordinates; reaching the cap never evicts an
+existing coordinate, and all admitted coordinates continue to refresh.
+`MAX_PENDING_INDEX_JOBS` bounds unique lazy lookups, while unsuccessful lookups
+use `LAZY_INDEX_COOLDOWN_MINUTES` before they can be queued again.
+
+Opening a valid but unknown `/nip/<naddr>` returns the client fallback without
+waiting for relay I/O and queues a deduplicated lookup. Only verified, active
+events in PostgreSQL are included in `sitemap.xml` or receive indexable metadata.
+
+### Local development
+
+Start PostgreSQL and apply migrations, then run the web and worker processes:
+
+```bash
+pnpm install
+pnpm db:migrate
+pnpm dev             # http://localhost:3000
+pnpm worker:build
+pnpm worker:start
 ```
 
 Click **Connect** and pick any signer method from the modal (extension, bunker /
@@ -89,5 +130,7 @@ your follows and enables the Following / Web of Trust surfaces. Global works
 logged-out.
 
 ```bash
-npm run build    # typecheck + production build
+pnpm build    # typecheck + production build
+pnpm test
+pnpm lint
 ```

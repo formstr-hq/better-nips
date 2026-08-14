@@ -76,7 +76,6 @@ export function useObserve(
       offWarm();
       handle.unobserve();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, localOnly]);
 
   return state;

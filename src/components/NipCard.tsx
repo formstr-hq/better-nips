@@ -99,7 +99,8 @@ export function NipCard({
             disabled={pending}
             onClick={(e) => {
               e.stopPropagation();
-              approved ? onRetract() : onApprove();
+              if (approved) onRetract();
+              else onApprove();
             }}
             title={
               approved ? "Click to retract your approval" : "Publish a NIP-32 approval"
@@ -113,7 +114,8 @@ export function NipCard({
             disabled={pending}
             onClick={(e) => {
               e.stopPropagation();
-              disapproved ? onRetract() : onDisapprove();
+              if (disapproved) onRetract();
+              else onDisapprove();
             }}
             title={
               disapproved
