@@ -77,6 +77,10 @@ export function LoginModal({
   const hasExtension =
     typeof window !== "undefined" && "nostr" in window;
 
+  // Synchronous capability check: an Android browser with clipboard access,
+  // and not inside a native shell. False on desktop, so the row is hidden.
+  const canUseNip55Web = signer.supportsNip55Web();
+
   const reset = useCallback(() => {
     qrAbort.current?.abort();
     qrAbort.current = null;
@@ -161,6 +165,9 @@ export function LoginModal({
 
   const onExtension = () =>
     guard(() => signer.loginWithExtension());
+
+  const onNip55Web = () =>
+    guard(() => signer.loginWithNip55Web());
 
   const onBunker = () =>
     guard(() => signer.loginWithBunkerUri(bunkerUri.trim(), { pool }));
@@ -251,6 +258,18 @@ export function LoginModal({
               title="Browser extension"
               desc="Alby, nos2x, Flamingo…"
               onClick={onExtension}
+              disabled={busy}
+            />
+          )}
+
+          {/* Browser NIP-55: an Android signer app reached from the browser.
+              supportsNip55Web() is false on desktop, so this stays hidden. */}
+          {canUseNip55Web && (
+            <OptionRow
+              icon="📱"
+              title="Signer app"
+              desc="Amber or another NIP-55 app on this device"
+              onClick={onNip55Web}
               disabled={busy}
             />
           )}
