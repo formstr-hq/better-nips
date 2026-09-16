@@ -1147,6 +1147,18 @@ body {
   white-space: pre-wrap;
   word-break: break-word;
 }
+/* Advisory, non-blocking — the option above it stays enabled. */
+.login-warn {
+  margin: 0 18px 12px;
+  padding: 9px 12px;
+  background: var(--warning-soft, #fef3c7);
+  border: 1px solid var(--warning, #d97706);
+  border-radius: var(--radius-sm);
+  color: var(--warning, #92400e);
+  font-size: 12.5px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 .login-options {
   display: flex;
   flex-direction: column;

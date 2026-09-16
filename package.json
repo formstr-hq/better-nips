@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@formstr/local-relay": "^0.4.2",
-    "@formstr/signer": "^0.3.0",
+    "@formstr/signer": "^0.3.1",
     "nostr-tools": "^2.23.5",
     "qrcode.react": "^4.2.0",
     "react": "^18.3.1",

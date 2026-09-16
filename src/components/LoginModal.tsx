@@ -78,8 +78,9 @@ export function LoginModal({
     typeof window !== "undefined" && "nostr" in window;
 
   // Synchronous capability check: an Android browser with clipboard access,
-  // and not inside a native shell. False on desktop, so the row is hidden.
-  const canUseNip55Web = signer.supportsNip55Web();
+  // and not inside a native shell. Hidden on desktop; `warning` flags Firefox
+  // for Android, which cannot read the clipboard, without disabling the row.
+  const nip55Web = signer.nip55WebSupport();
 
   const reset = useCallback(() => {
     qrAbort.current?.abort();
@@ -263,15 +264,20 @@ export function LoginModal({
           )}
 
           {/* Browser NIP-55: an Android signer app reached from the browser.
-              supportsNip55Web() is false on desktop, so this stays hidden. */}
-          {canUseNip55Web && (
-            <OptionRow
-              icon="📱"
-              title="Signer app"
-              desc="Amber or another NIP-55 app on this device"
-              onClick={onNip55Web}
-              disabled={busy}
-            />
+              Hidden on desktop; warned about on Firefox for Android. */}
+          {nip55Web.visible && (
+            <>
+              <OptionRow
+                icon="📱"
+                title="Signer app"
+                desc="Amber or another NIP-55 app on this device"
+                onClick={onNip55Web}
+                disabled={busy}
+              />
+              {nip55Web.warning && (
+                <div className="login-warn">{nip55Web.warning}</div>
+              )}
+            </>
           )}
 
           <div className="login-opt-wrap">
