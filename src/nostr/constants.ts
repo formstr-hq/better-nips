@@ -47,6 +47,7 @@ export const POLLERAMA_URL = "https://pollerama.fun";
 
 /** Relays we read from / publish to by default (user-overridable in Settings). */
 export const RELAYS = [
+  "wss://relay.formstr.app",
   "wss://relay.damus.io",
   "wss://nos.lol",
   "wss://relay.primal.net",
