@@ -1,4 +1,4 @@
-import { type CSSProperties, type ReactNode } from "react";
+import { type CSSProperties, type ElementType, type ReactNode } from "react";
 
 /**
  * A deliberately small Markdown renderer that returns React nodes (never raw
@@ -53,7 +53,7 @@ function renderBlocks(src: string): ReactNode[] {
     const heading = line.match(/^(#{1,6})\s+(.*)$/);
     if (heading) {
       const level = heading[1].length;
-      const Tag = `h${Math.min(level + 1, 6)}` as keyof JSX.IntrinsicElements;
+      const Tag = `h${Math.min(level + 1, 6)}` as ElementType;
       out.push(
         <Tag className="md-h" key={k()}>
           {renderInline(heading[2])}
@@ -158,7 +158,7 @@ function renderBlocks(src: string): ReactNode[] {
     const underline = lines[i + 1];
     if (underline !== undefined && /^(=+|-+)\s*$/.test(underline)) {
       const level = underline.trim().startsWith("=") ? 1 : 2;
-      const Tag = `h${Math.min(level + 1, 6)}` as keyof JSX.IntrinsicElements;
+      const Tag = `h${Math.min(level + 1, 6)}` as ElementType;
       out.push(
         <Tag className="md-h" key={k()}>
           {renderInline(line)}

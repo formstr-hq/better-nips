@@ -16,8 +16,9 @@ import { useNotifications } from "./hooks/useNotifications";
 import { useWebOfTrust } from "./hooks/useWebOfTrust";
 import { useUserRelays } from "./hooks/useUserRelays";
 import { editHref, nipHref, useRoute } from "./hooks/useRoute";
+import type { InitialNipData } from "./nostr/initialNip";
 
-export default function App() {
+export default function App({ initialNip }: { initialNip?: InitialNipData }) {
   const { pubkey, locked, method } = useSigner();
   const { route, navigate } = useRoute();
   const [surface, setSurface] = useState<Surface>("following");
@@ -86,6 +87,7 @@ export default function App() {
             onBack={() => navigate("/")}
             onEdit={() => navigate(editHref(route.id))}
             onDeleted={() => navigate("/")}
+            initialNip={initialNip}
           />
         ) : route.name === "edit" ? (
           <ComposeNip

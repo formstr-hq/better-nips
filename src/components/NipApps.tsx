@@ -113,7 +113,8 @@ function AddApp({
   const toggleKind = (k: string) =>
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(k) ? next.delete(k) : next.add(k);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
       return next;
     });
 

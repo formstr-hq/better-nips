@@ -1,6 +1,6 @@
 import type { Event } from "nostr-tools";
-import { naddrEncode } from "nostr-tools/nip19";
-import { KIND_NIP, RELAYS } from "./constants";
+import { KIND_NIP } from "./constants";
+import { canonicalNaddr } from "./coordinates";
 
 export interface NipKind {
   kind: string;
@@ -34,12 +34,7 @@ export function addressOf(e: Event): string {
 /** Shareable naddr (NIP-19) for a parsed NIP — the id in its screen's URL. */
 export function naddrOf(nip: { pubkey: string; d: string }): string {
   try {
-    return naddrEncode({
-      identifier: nip.d,
-      pubkey: nip.pubkey,
-      kind: KIND_NIP,
-      relays: RELAYS.slice(0, 2),
-    });
+    return canonicalNaddr(nip.pubkey, nip.d);
   } catch {
     return `${KIND_NIP}:${nip.pubkey}:${nip.d}`;
   }
@@ -52,7 +47,7 @@ export function parseNip(e: Event): Nip | null {
   const kinds: NipKind[] = e.tags
     .filter((t) => t[0] === "k" && t[1])
     .map((t) => ({ kind: t[1], name: t[2] ?? "" }));
-  const title = tagValue(e, "title") ?? d ?? "Untitled NIP";
+  const title = tagValue(e, "title")?.trim() || d || "Untitled NIP";
   // First non-empty markdown line, minus a leading heading marker.
   const summary =
     (e.content.split("\n").find((l) => l.trim().length > 0) ?? "")

@@ -1,0 +1,84 @@
+name: better-nips
+
+x-app-environment: &app-environment
+  NODE_ENV: production
+  DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+  SITE_URL: ${SITE_URL:-http://localhost:3000}
+  MAX_INDEXED_NIPS: ${MAX_INDEXED_NIPS:-10000}
+  NIP_INDEX_CRON: ${NIP_INDEX_CRON:-0 3 * * *}
+  NOSTR_INDEX_RELAYS: ${NOSTR_INDEX_RELAYS:-}
+  RELAY_QUERY_TIMEOUT_MS: ${RELAY_QUERY_TIMEOUT_MS:-8000}
+  RELAY_QUERY_RETRIES: ${RELAY_QUERY_RETRIES:-2}
+  RELAY_QUERY_CONCURRENCY: ${RELAY_QUERY_CONCURRENCY:-8}
+  INDEX_COORDINATE_CONCURRENCY: ${INDEX_COORDINATE_CONCURRENCY:-4}
+  WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
+  MAX_PENDING_INDEX_JOBS: ${MAX_PENDING_INDEX_JOBS:-1000}
+  LAZY_INDEX_COOLDOWN_MINUTES: ${LAZY_INDEX_COOLDOWN_MINUTES:-1440}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-better_nips}
+      POSTGRES_USER: ${POSTGRES_USER:-better_nips}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  migrate:
+    build:
+      context: .
+      target: migration
+    environment: *app-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    build:
+      context: .
+      target: web
+    restart: unless-stopped
+    init: true
+    environment: *app-environment
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 30s
+
+  worker:
+    build:
+      context: .
+      target: worker
+    restart: unless-stopped
+    init: true
+    environment: *app-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 30s
+
+volumes:
+  postgres-data:

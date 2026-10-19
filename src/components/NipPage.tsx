@@ -1,26 +1,16 @@
 import { useEffect, useMemo } from "react";
-import { npubEncode } from "nostr-tools/nip19";
 import { useNipByAddress } from "../hooks/useNipByAddress";
 import { useProfile, useProfiles } from "../hooks/useNips";
 import { useApprove } from "../hooks/useApprove";
 import { useDeleteNip } from "../hooks/useDeleteNip";
 import { signer } from "../nostr/bootstrap";
+import type { InitialNipData } from "../nostr/initialNip";
 import { APP_NAME, APP_TAGLINE } from "../nostr/constants";
-import { Markdown } from "../lib/markdown";
 import { toast } from "../lib/toast";
 import { ApproverStack } from "./ApproverStack";
 import { FeedbackBar } from "./FeedbackBar";
 import { NipApps } from "./NipApps";
-import { ProfileLink } from "./ProfileLink";
-
-function authorLabel(pubkey: string, name?: string): string {
-  if (name) return name;
-  try {
-    return npubEncode(pubkey).slice(0, 16) + "…";
-  } catch {
-    return pubkey.slice(0, 16);
-  }
-}
+import { authorLabel, NipDocument } from "./NipDocument";
 
 async function copy(text: string, what: string) {
   try {
@@ -44,6 +34,7 @@ export function NipPage({
   onBack,
   onEdit,
   onDeleted,
+  initialNip,
 }: {
   id: string;
   follows: string[];
@@ -54,6 +45,7 @@ export function NipPage({
   onEdit: () => void;
   /** Called after a successful deletion request (owner only). */
   onDeleted: () => void;
+  initialNip?: InitialNipData;
 }) {
   const networkAuthors = useMemo(
     () => [...new Set([...follows, ...webOfTrust])],
@@ -62,6 +54,7 @@ export function NipPage({
   const { nip, approvers, disapprovers, ready, coord } = useNipByAddress(
     id,
     networkAuthors,
+    initialNip,
   );
   const profile = useProfile(nip?.pubkey ?? null);
   const { approve, disapprove, retract, approved, disapproved, pending } =
@@ -145,12 +138,6 @@ export function NipPage({
     );
   }
 
-  const created = new Date(nip.createdAt * 1000).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-
   const handleDelete = async () => {
     if (
       !window.confirm(
@@ -193,62 +180,21 @@ export function NipPage({
         </div>
       </div>
 
-      <ProfileLink
-        pubkey={nip.pubkey}
-        className="author detail-author"
-        title={authorLabel(nip.pubkey, profile?.name)}
-      >
-        {profile?.picture ? (
-          <img className="avatar" src={profile.picture} alt="" />
-        ) : (
-          <div className="avatar placeholder" />
-        )}
-        <div className="author-meta">
-          <span className="author-name">
-            {authorLabel(nip.pubkey, profile?.name)}
-          </span>
-          {profile?.nip05 && <span className="nip05">{profile.nip05}</span>}
-        </div>
-      </ProfileLink>
-
-      <ApproverStack
-        approvers={approverPubkeys}
-        disapprovers={disapproverPubkeys}
-        profiles={verdictProfiles}
-        follows={follows}
-        webOfTrust={webOfTrust}
-        me={me}
+      <NipDocument
+        nip={nip}
+        profile={profile}
+        approvalCount={count}
+        verdict={
+          <ApproverStack
+            approvers={approverPubkeys}
+            disapprovers={disapproverPubkeys}
+            profiles={verdictProfiles}
+            follows={follows}
+            webOfTrust={webOfTrust}
+            me={me}
+          />
+        }
       />
-
-      <h1 className="sheet-title">{nip.title}</h1>
-      <div className="sheet-meta">
-        <span>Published {created}</span>
-        <span className="dot-sep">·</span>
-        <span>
-          {count} approval{count === 1 ? "" : "s"}
-        </span>
-      </div>
-
-      {nip.kinds.length > 0 && (
-        <div className="kinds detail-kinds">
-          {nip.kinds.map((k) => (
-            <span className="kind-chip" key={k.kind}>
-              kind {k.kind}
-              {k.name ? ` · ${k.name}` : ""}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div className="markdown nip-page-body">
-        {nip.content.trim() ? (
-          <Markdown source={nip.content} />
-        ) : (
-          <p className="empty-inline">
-            This NIP has no body content — only metadata.
-          </p>
-        )}
-      </div>
 
       <div className="nip-page-actions">
         <button
